@@ -31,7 +31,6 @@ class _AuthScreenState extends State<AuthScreen> {
     final isValid = _form.currentState!.validate();
 
     if (!isValid || (!_isLogin && _selectedImage == null)) {
-      // Show an error message
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete the form correctly')),
@@ -45,15 +44,13 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _isAuthenticating = true;
       });
+
       if (_isLogin) {
-        // Log user in
         final userCredentials = await _firebase.signInWithEmailAndPassword(
             email: _userEmail, password: _userPassword);
-        // print(userCredentials);
       } else {
         final userCredentials = await _firebase.createUserWithEmailAndPassword(
             email: _userEmail, password: _userPassword);
-        // print(userCredentials);
 
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -62,7 +59,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
         await storageRef.putFile(_selectedImage!);
         final imageUrl = await storageRef.getDownloadURL();
-        // print(imageUrl);
 
         await FirebaseFirestore.instance
             .collection('users')
@@ -71,17 +67,22 @@ class _AuthScreenState extends State<AuthScreen> {
           'username': _userName,
           'email': _userEmail,
           'image_url': imageUrl,
+          
         });
       }
     } on FirebaseAuthException catch (error) {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Authentication Failed')));
+        SnackBar(content: Text(error.message ?? 'Authentication Failed')),
+      );
     } catch (error) {
       ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:  Text('An error occurred. Please try again later.')));
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An error occurred. Please try again later.'),
+        ),
+      );
+    } finally {
       setState(() {
         _isAuthenticating = false;
       });
@@ -89,32 +90,45 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        // The user canceled the sign-in
-        return;
-      }
+  try {
+    setState(() {
+      _isAuthenticating = true;
+    });
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebase.signInWithCredential(credential);
-      // print(userCredential);
-    } on FirebaseAuthException catch (error) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Google Sign-In Failed')));
-    } catch (error) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('An error occurred. Please try again later.')));
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) {
+      // The user canceled the sign-in
+      setState(() {
+        _isAuthenticating = false;
+      });
+      return;
     }
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final AuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential = await _firebase.signInWithCredential(credential);
+  } on FirebaseAuthException catch (error) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error.message ?? 'Google Sign-In Failed')),
+    );
+  } catch (error) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('An error occurred. Please try again later.'),
+      ),
+    );
+  } finally {
+    setState(() {
+      _isAuthenticating = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -170,20 +184,22 @@ class _AuthScreenState extends State<AuthScreen> {
                             },
                           ),
                           if (!_isLogin)
-                          TextFormField(
-                            decoration:  const InputDecoration(labelText: 'Username'),
-                            enableSuggestions: false,
-                            validator: (value) {
-                              if(value == null || value.trim().isEmpty || value.trim().length < 4) {
-                                return 'Please enter atleast 4 characters.';
-                              }
-                              return null;
-                            },
-                            onSaved: (value) {
-                              _userName = value!;
-                            },
-                          ),
-
+                            TextFormField(
+                              decoration:
+                                  const InputDecoration(labelText: 'Username'),
+                              enableSuggestions: false,
+                              validator: (value) {
+                                if (value == null ||
+                                    value.trim().isEmpty ||
+                                    value.trim().length < 4) {
+                                  return 'Please enter atleast 4 characters.';
+                                }
+                                return null;
+                              },
+                              onSaved: (value) {
+                                _userName = value!;
+                              },
+                            ),
                           TextFormField(
                             decoration:
                                 const InputDecoration(labelText: 'Password'),
